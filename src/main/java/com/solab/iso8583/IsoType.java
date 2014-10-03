@@ -56,7 +56,9 @@ public enum IsoType {
 	/** Similar to LLVAR but holds byte arrays instead of strings. */
 	LLBIN(false, 0),
 	/** Similar to LLLVAR but holds byte arrays instead of strings. */
-	LLLBIN(false, 0);
+	LLLBIN(false, 0),
+	/** Similar to LLBIN but holds length as number. */
+	LLVARBCD(false,0);
 
 	private boolean needsLen;
 	private int length;
@@ -150,7 +152,10 @@ public enum IsoType {
 
 		} else if (this == LLBIN || this == LLLBIN) {
 			return value;
+		} else if (this == IsoType.LLVARBCD){
+			return value;
 		}
+		
 		throw new IllegalArgumentException("Cannot format String as " + this);
 	}
 

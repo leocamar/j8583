@@ -151,8 +151,8 @@ public class ConfigParser {
                         throw new IllegalArgumentException("Header def " + type + " refers to nonexistent header " + t2);
                     }
                     if (log.isTraceEnabled()) {
-                        log.trace("Adding ISO8583 header for type {}: {} (copied from {})",
-                                elem.getAttribute("type"), h, elem.getAttribute("ref"));
+//                        log.trace("Adding ISO8583 header for type {}: {} (copied from {})",
+//                                elem.getAttribute("type"), h, elem.getAttribute("ref"));
                     }
                     mfact.setIsoHeader(type, h);
                 }
