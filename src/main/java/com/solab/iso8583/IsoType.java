@@ -58,7 +58,10 @@ public enum IsoType {
 	/** Similar to LLLVAR but holds byte arrays instead of strings. */
 	LLLBIN(false, 0),
 	/** Similar to LLBIN but holds length as number. */
-	LLVARBCD(false,0);
+	LLVARBCD(false,0),
+	LLBINBCD(false,0),
+	LLBINFENCODE(false,0),
+	LLLBINFENCODE(false,0);
 
 	private boolean needsLen;
 	private int length;

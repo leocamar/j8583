@@ -119,6 +119,10 @@ public abstract class FieldParseInfo {
 			fpi = new LlbinParseInfo();
 		} else if (t == IsoType.LLLBIN) {
 			fpi = new LllbinParseInfo();
+		} else if (t == IsoType.LLVARBCD) {
+			fpi = new LlvarbcdParseInfo();
+		}else if (t == IsoType.LLBINBCD) {
+			fpi = new LlbinbcdParseInfo();
 		} else if (t == IsoType.LLLVAR) {
 			fpi = new LllvarParseInfo();
 		} else if (t == IsoType.LLVAR) {
@@ -127,7 +131,12 @@ public abstract class FieldParseInfo {
 			fpi = new NumericParseInfo(len);
 		} else if (t == IsoType.TIME) {
 			fpi = new TimeParseInfo();
+		} else if (t == IsoType.LLBINFENCODE) {
+			fpi = new LlbinFEncodeParseInfo();
+		} else if (t == IsoType.LLLBINFENCODE) {
+			fpi = new LllbinFEncodeParseInfo();
 		}
+		
 		if (fpi == null) {
 	 		throw new IllegalArgumentException(String.format("Cannot parse type %s", t));
 		}

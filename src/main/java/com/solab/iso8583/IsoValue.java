@@ -61,6 +61,7 @@ public class IsoValue<T> implements Cloneable {
 	 * @param custom
 	 *            An optional CustomField to encode/decode a custom value.
 	 */
+
 	public IsoValue(IsoType t, T value, CustomField<T> custom) {
 		if (t.needsLength()) {
 			throw new IllegalArgumentException(
@@ -93,7 +94,6 @@ public class IsoValue<T> implements Cloneable {
 				} else {
 					length = value.toString().length() / 2
 							+ (value.toString().length() % 2);
-//					length = Integer.parseInt(Integer.toHexString(value.toString().length()));
 				}
 			} else if (custom instanceof CustomBinaryField) {
 				length = ((CustomBinaryField<T>) custom)
@@ -112,13 +112,38 @@ public class IsoValue<T> implements Cloneable {
 				throw new IllegalArgumentException(
 						"LLLBIN can only hold values up to 999 chars");
 			}
+		}else if (type == IsoType.LLBINFENCODE || type == IsoType.LLLBINFENCODE) {
+			if (custom == null) {
+				if (value instanceof byte[]) {
+					length = ((byte[]) value).length;
+				} else {
+					length = value.toString().length() / 2
+							+ (value.toString().length() % 2);
+				}
+			} else if (custom instanceof CustomBinaryField) {
+				length = ((CustomBinaryField<T>) custom)
+						.encodeBinaryField(value).length;
+			} else {
+				String enc = custom.encodeField(value);
+				if (enc == null) {
+					enc = value == null ? "" : value.toString();
+				}
+				length = enc.length();
+			}
+			if (t == IsoType.LLBINFENCODE && length > 99) {
+				throw new IllegalArgumentException(
+						"LLBIN can only hold values up to 99 chars");
+			} else if (t == IsoType.LLLBINFENCODE && length > 999) {
+				throw new IllegalArgumentException(
+						"LLLBIN can only hold values up to 999 chars");
+			}
 		} else if (t == IsoType.LLVARBCD) {
 
 			if (custom == null) {
 				if (value instanceof byte[]) {
 					length = ((byte[]) value).length;
 				} else {
-					length = Integer.parseInt(Integer.toHexString(value.toString().length()));
+					length = value.toString().length();
 				}
 			}
 			if (t == IsoType.LLVARBCD && length > 255) {
@@ -126,6 +151,18 @@ public class IsoValue<T> implements Cloneable {
 						"LLVARBCD can only hold values up to 255 chars");
 			}
 
+		} else if (t == IsoType.LLBINBCD) {
+			if (custom == null) {
+				if (value instanceof byte[]) {
+					length = ((byte[]) value).length;
+				} else {
+					length = (value.toString().length())/2;
+				}
+			}
+			if (t == IsoType.LLVARBCD && length > 255) {
+				throw new IllegalArgumentException(
+						"LLVARBCD can only hold values up to 255 chars");
+			}
 		} else {
 			length = type.getLength();
 		}
@@ -323,10 +360,56 @@ public class IsoValue<T> implements Cloneable {
 			final boolean forceStringEncoding) throws IOException {
 		if (binary) {
 			if (digits == 3) {
-				outs.write(l / 100); // 00 to 09 automatically in BCD
+				if (type == IsoType.LLLBINFENCODE) {
+					byte[] buf = new byte[3];
+					if (l > 99) {
+						buf[0] = (byte) (String.valueOf(l).charAt(0) | 0xF0);
+						buf[1] = (byte) (String.valueOf(l).charAt(1) | 0xF0);
+						buf[2] = (byte) (String.valueOf(l).charAt(2) | 0xF0);
+
+					}else if (l > 10) {
+						buf[0] = (byte) 0xF0;
+						buf[1] = (byte) (String.valueOf(l).charAt(0) | 0xF0);
+						buf[2] = (byte) (String.valueOf(l).charAt(1) | 0xF0);
+						
+					} else {
+						buf[0] = (byte) 0xF0;
+						buf[1] = (byte) 0xF0;
+						buf[2] = (byte) (l | 0xF0);
+						
+
+					}
+					
+					outs.write(buf);
+					
+				}else {
+					outs.write(l / 100); // 00 to 09 automatically in BCD
+				}
+			
+			} else if (type == IsoType.LLVARBCD || type == IsoType.LLBINBCD) {
+				String length = Integer.toHexString(l);
+				byte[] buf = new byte[1];
+				Bcd.encode(length, buf);
+				outs.write(buf);
+
+			} else if (type == IsoType.LLBINFENCODE  ) {
+				byte[] buf = new byte[2];
+				
+				if (l < 10) {
+					buf[0] = (byte) 0xF0;
+					buf[1] = (byte) (l | 0xF0);
+					outs.write(buf);
+				}else {
+					buf[0] = (byte) (String.valueOf(l).charAt(0) | 0xF0);
+					buf[1] = (byte) (String.valueOf(l).charAt(1) | 0xF0);
+					outs.write(buf);
+				}
+				
+			} else {
+
+				// BCD encode the rest of the length
+				outs.write((((l % 100) / 10) << 4) | (l % 10));
 			}
-			// BCD encode the rest of the length
-			outs.write((((l % 100) / 10) << 4) | (l % 10));
 		} else if (forceStringEncoding) {
 			String lhead = Integer.toString(l);
 			final int ldiff = digits - lhead.length();
@@ -374,9 +457,11 @@ public class IsoValue<T> implements Cloneable {
 		} else if (type == IsoType.LLBIN || type == IsoType.LLLBIN) {
 			writeLengthHeader(binary ? length : length * 2, outs,
 					type == IsoType.LLLBIN ? 3 : 2, binary, forceStringEncoding);
-		} else if (type == IsoType.LLVARBCD) {
+		} else if (type == IsoType.LLVARBCD || type == IsoType.LLBINBCD || type == IsoType.LLBINFENCODE) {
 			writeLengthHeader(length, outs, 2, binary, forceStringEncoding);
-		}else if (binary) {
+		} else if (type == IsoType.LLLBINFENCODE) {
+			writeLengthHeader(length, outs, 3, binary, forceStringEncoding);
+		} else if (binary) {
 			// numeric types in binary are coded like this
 			byte[] buf = null;
 			if (type == IsoType.NUMERIC) {
@@ -415,6 +500,10 @@ public class IsoValue<T> implements Cloneable {
 					outs.write(0);
 				}
 			}
+		} else if (binary && ((type == IsoType.LLVARBCD) || (type == IsoType.LLBINBCD) || (type == IsoType.LLBINFENCODE) || (type == IsoType.LLLBINFENCODE) )) {
+			byte[] binval = HexCodec.hexDecode(value.toString());
+			outs.write(binval);
+
 		} else {
 			outs.write(encoding == null ? toString().getBytes() : toString()
 					.getBytes(encoding));
