@@ -411,12 +411,15 @@ public class ConfigParser {
 	/** Parses a message type expressed as a hex string and returns the integer number.
 	 * For example, "0200" or "200" return the number 512 (0x200) */
 	private static int parseType(String type) throws IOException {
+		type = type.replaceAll("F", "");
+		
 		if (type.length() % 2 == 1) {
 			type = "0" + type;
 		}
 		if (type.length() != 4) {
 			return -1;
 		}
+		
 		return ((type.charAt(0) - 48) << 12) | ((type.charAt(1) - 48) << 8)
 			| ((type.charAt(2) - 48) << 4) | (type.charAt(3) - 48);
 	}

@@ -284,11 +284,11 @@ public class MessageFactory<T extends IsoMessage> {
 		m.setForceStringEncoding(forceStringEncoding);
 
 		// Copy the values from the template
-		IsoMessage templ = typeTemplates.get(type);
+		IsoMessage templ = typeTemplates.get(type > 10000 ? type - 10000 : type);
 		if (templ != null) {
 			for (int i = 2; i <= 128; i++) {
 				if (templ.hasField(i)) {
-					// We could detect here if there's a custom object with a
+					// We could detect here if there's a custom object with a[
 					// CustomField,
 					// but we can't copy the value so there's no point.
 					m.setField(i, templ.getField(i).clone());
@@ -374,7 +374,8 @@ public class MessageFactory<T extends IsoMessage> {
 	 */
 	public T parseMessage(byte[] buf, int isoHeaderLength)
 			throws ParseException, UnsupportedEncodingException {
-		final int minlength = isoHeaderLength + (useBinary ? 2 : 4)
+		boolean isFuckEncoded = false;
+		int minlength = isoHeaderLength + (useBinary ? 2 : 4)
 				+ (binBitmap || useBinary ? 8 : 16);
 		if (buf.length < minlength) {
 			throw new ParseException(
@@ -386,12 +387,42 @@ public class MessageFactory<T extends IsoMessage> {
 		m.setCharacterEncoding(encoding);
 		final int type;
 		if (useBinary) {
-			type = ((buf[isoHeaderLength] & 0xff) << 8)
-					| (buf[isoHeaderLength + 1] & 0xff);
+
+			if (buf[isoHeaderLength] < 0) {
+				buf[isoHeaderLength] = (byte) ((int) (buf[isoHeaderLength] + 256));
+			}
+
+			if ((buf[isoHeaderLength] & 0xf0) > 57) {
+
+				int headerByte1 = buf[isoHeaderLength];
+				int headerByte2 = buf[isoHeaderLength + 1];
+				int headerByte3 = buf[isoHeaderLength + 2];
+				int headerByte4 = buf[isoHeaderLength + 3];
+
+				type = ((headerByte1 & 0x0f) << 16)
+						| ((headerByte2 & 0x0f) << 8
+								| ((headerByte3 & 0x0f) << 4) | (headerByte4 & 0x0f));
+
+				isFuckEncoded = true;
+				minlength = minlength + 2;
+			} else {
+				type = ((buf[isoHeaderLength] & 0xff) << 8)
+						| (buf[isoHeaderLength + 1] & 0xff);
+			}
+
 		} else if (forceStringEncoding) {
 			type = Integer.parseInt(new String(buf, isoHeaderLength, 4,
 					encoding), 16);
+		} else if (buf[isoHeaderLength] > 57) {
+
+			type = ((buf[isoHeaderLength + 1] - 48) << 12)
+					| ((buf[isoHeaderLength + 3] - 48) << 8)
+					| ((buf[isoHeaderLength + 5] - 48) << 4)
+					| (buf[isoHeaderLength + 7] - 48);
+
+			isFuckEncoded = true;
 		} else {
+
 			type = ((buf[isoHeaderLength] - 48) << 12)
 					| ((buf[isoHeaderLength + 1] - 48) << 8)
 					| ((buf[isoHeaderLength + 2] - 48) << 4)
@@ -402,9 +433,16 @@ public class MessageFactory<T extends IsoMessage> {
 		final BitSet bs = new BitSet(64);
 		int pos = 0;
 		if (useBinary || binBitmap) {
-			final int bitmapStart = isoHeaderLength + (useBinary ? 2 : 4);
+			int bitmapStart;
+			if (isFuckEncoded) {
+				bitmapStart = isoHeaderLength + 4;
+			} else {
+				bitmapStart = isoHeaderLength + (useBinary ? 2 : 4);
+			}
+
 			for (int i = bitmapStart; i < 8 + bitmapStart; i++) {
 				int bit = 128;
+
 				for (int b = 0; b < 8; b++) {
 					bs.set(pos++, (buf[i] & bit) != 0);
 					bit >>= 1;
@@ -430,78 +468,7 @@ public class MessageFactory<T extends IsoMessage> {
 			}
 		} else {
 			// ASCII parsing
-			try {
-				final byte[] bitmapBuffer;
-				if (forceStringEncoding) {
-					byte[] _bb = new String(buf, isoHeaderLength + 4, 16,
-							encoding).getBytes();
-					bitmapBuffer = new byte[36 + isoHeaderLength];
-					System.arraycopy(_bb, 0, bitmapBuffer, 4 + isoHeaderLength,
-							16);
-				} else {
-					bitmapBuffer = buf;
-				}
-				for (int i = isoHeaderLength + 4; i < isoHeaderLength + 20; i++) {
-					if (bitmapBuffer[i] >= '0' && bitmapBuffer[i] <= '9') {
-						bs.set(pos++, ((bitmapBuffer[i] - 48) & 8) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 48) & 4) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 48) & 2) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 48) & 1) > 0);
-					} else if (bitmapBuffer[i] >= 'A' && bitmapBuffer[i] <= 'F') {
-						bs.set(pos++, ((bitmapBuffer[i] - 55) & 8) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 55) & 4) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 55) & 2) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 5) & 1) > 0);
-					} else if (bitmapBuffer[i] >= 'a' && bitmapBuffer[i] <= 'f') {
-						bs.set(pos++, ((bitmapBuffer[i] - 87) & 8) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 87) & 4) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 87) & 2) > 0);
-						bs.set(pos++, ((bitmapBuffer[i] - 87) & 1) > 0);
-					}
-				}
-				// Check for secondary bitmap and parse it if necessary
-				if (bs.get(0)) {
-					if (buf.length < minlength + 16) {
-						throw new ParseException(
-								"Insufficient length for secondary bitmap",
-								minlength);
-					}
-					if (forceStringEncoding) {
-						byte[] _bb = new String(buf, isoHeaderLength + 20, 16,
-								encoding).getBytes();
-						System.arraycopy(_bb, 0, bitmapBuffer,
-								20 + isoHeaderLength, 16);
-					}
-					for (int i = isoHeaderLength + 20; i < isoHeaderLength + 36; i++) {
-						if (bitmapBuffer[i] >= '0' && bitmapBuffer[i] <= '9') {
-							bs.set(pos++, ((bitmapBuffer[i] - 48) & 8) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 48) & 4) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 48) & 2) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 48) & 1) > 0);
-						} else if (bitmapBuffer[i] >= 'A'
-								&& bitmapBuffer[i] <= 'F') {
-							bs.set(pos++, ((bitmapBuffer[i] - 55) & 8) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 55) & 4) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 55) & 2) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 5) & 1) > 0);
-						} else if (bitmapBuffer[i] >= 'a'
-								&& bitmapBuffer[i] <= 'f') {
-							bs.set(pos++, ((bitmapBuffer[i] - 87) & 8) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 87) & 4) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 87) & 2) > 0);
-							bs.set(pos++, ((bitmapBuffer[i] - 87) & 1) > 0);
-						}
-					}
-					pos = 16 + minlength;
-				} else {
-					pos = minlength;
-				}
-			} catch (NumberFormatException ex) {
-				ParseException _e = new ParseException(
-						"Invalid ISO8583 bitmap", pos);
-				_e.initCause(ex);
-				throw _e;
-			}
+			pos = asciiParsing(buf, isoHeaderLength, minlength, bs, pos);
 		}
 		// Parse each field
 		Map<Integer, FieldParseInfo> parseGuide = parseMap.get(type);
@@ -566,7 +533,7 @@ public class MessageFactory<T extends IsoMessage> {
 									|| val.getType() == IsoType.LLBINFENCODE) {
 								pos += 2;
 							} else if (val.getType() == IsoType.LLLBINFENCODE) {
-								pos +=3;
+								pos += 3;
 							}
 						}
 					}
@@ -607,6 +574,81 @@ public class MessageFactory<T extends IsoMessage> {
 		m.setBinary(useBinary);
 		m.setBinaryBitmap(binBitmap);
 		return m;
+	}
+
+	private int asciiParsing(byte[] buf, int isoHeaderLength,
+			final int minlength, final BitSet bs, int pos)
+			throws UnsupportedEncodingException, ParseException {
+		try {
+			final byte[] bitmapBuffer;
+			if (forceStringEncoding) {
+				byte[] _bb = new String(buf, isoHeaderLength + 4, 16, encoding)
+						.getBytes();
+				bitmapBuffer = new byte[36 + isoHeaderLength];
+				System.arraycopy(_bb, 0, bitmapBuffer, 4 + isoHeaderLength, 16);
+			} else {
+				bitmapBuffer = buf;
+			}
+			for (int i = isoHeaderLength + 4; i < isoHeaderLength + 20; i++) {
+				if (bitmapBuffer[i] >= '0' && bitmapBuffer[i] <= '9') {
+					bs.set(pos++, ((bitmapBuffer[i] - 48) & 8) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 48) & 4) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 48) & 2) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 48) & 1) > 0);
+				} else if (bitmapBuffer[i] >= 'A' && bitmapBuffer[i] <= 'F') {
+					bs.set(pos++, ((bitmapBuffer[i] - 55) & 8) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 55) & 4) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 55) & 2) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 5) & 1) > 0);
+				} else if (bitmapBuffer[i] >= 'a' && bitmapBuffer[i] <= 'f') {
+					bs.set(pos++, ((bitmapBuffer[i] - 87) & 8) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 87) & 4) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 87) & 2) > 0);
+					bs.set(pos++, ((bitmapBuffer[i] - 87) & 1) > 0);
+				}
+			}
+			// Check for secondary bitmap and parse it if necessary
+			if (bs.get(0)) {
+				if (buf.length < minlength + 16) {
+					throw new ParseException(
+							"Insufficient length for secondary bitmap",
+							minlength);
+				}
+				if (forceStringEncoding) {
+					byte[] _bb = new String(buf, isoHeaderLength + 20, 16,
+							encoding).getBytes();
+					System.arraycopy(_bb, 0, bitmapBuffer,
+							20 + isoHeaderLength, 16);
+				}
+				for (int i = isoHeaderLength + 20; i < isoHeaderLength + 36; i++) {
+					if (bitmapBuffer[i] >= '0' && bitmapBuffer[i] <= '9') {
+						bs.set(pos++, ((bitmapBuffer[i] - 48) & 8) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 48) & 4) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 48) & 2) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 48) & 1) > 0);
+					} else if (bitmapBuffer[i] >= 'A' && bitmapBuffer[i] <= 'F') {
+						bs.set(pos++, ((bitmapBuffer[i] - 55) & 8) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 55) & 4) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 55) & 2) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 5) & 1) > 0);
+					} else if (bitmapBuffer[i] >= 'a' && bitmapBuffer[i] <= 'f') {
+						bs.set(pos++, ((bitmapBuffer[i] - 87) & 8) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 87) & 4) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 87) & 2) > 0);
+						bs.set(pos++, ((bitmapBuffer[i] - 87) & 1) > 0);
+					}
+				}
+				pos = 16 + minlength;
+			} else {
+				pos = minlength;
+			}
+		} catch (NumberFormatException ex) {
+			ParseException _e = new ParseException("Invalid ISO8583 bitmap",
+					pos);
+			_e.initCause(ex);
+			throw _e;
+		}
+		return pos;
 	}
 
 	/**

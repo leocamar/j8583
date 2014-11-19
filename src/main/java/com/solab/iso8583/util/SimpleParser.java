@@ -64,9 +64,17 @@ public class SimpleParser {
             }
         }
         //Now read messages in a loop
-        String line = getMessage();
+        String a = getMessage();
+//        String a = byteArry2HexString(getMessage().getBytes());
+        String line = new String(new char[] {0xF0, 0xF8, 0xF0, 0xF0, 0xC2, 0x20, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xF5, 0xF9, 0xF1, 0xF1, 0xF0, 0xF9, 0xF1, 0xF0, 0xF2, 0xF2, 0xF1, 0xF0, 0xF0, 0xF5, 0xF3, 0xF0, 0xF0, 0xF0, 0xF0, 0xF3, 0xF6, 0xF1, 0xF0, 0xF6, 0xF0, 0xF0, 0xF1, 0xF1, 0xF0, 0xF9, 0xF2, 0xF7, 0xF0});
+        byte[] z = new byte[] {(byte) 0xF0, (byte) 0xF8, (byte) 0xF1, (byte) 0xF0, (byte) 0xC2, (byte) 0x20, (byte) 0x00, (byte) 0x00, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x04, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xF0, (byte) 0xF5, (byte) 0xF9, (byte) 0xF1, (byte) 0xF1, (byte) 0xF0, (byte) 0xF9, (byte) 0xF1, (byte) 0xF0, (byte) 0xF2, (byte) 0xF2, (byte) 0xF1, (byte) 0xF0, (byte) 0xF0, (byte) 0xF5, (byte) 0xF3, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF3, (byte) 0xF6, (byte) 0xF1, (byte) 0xF0, (byte) 0xF6, (byte) 0xF0, (byte) 0xF0, (byte) 0xF1, (byte) 0xF1, (byte) 0xF0, (byte) 0xF9, (byte) 0xF0, (byte) 0xF0, (byte) 0xF2, (byte) 0xF7, (byte) 0xF0};
+        
+//        String line = a;
         while (line != null && line.length() > 0) {
-            IsoMessage m = mf.parseMessage(line.getBytes(), 0);
+        	mf.setUseBinaryMessages(true);
+//        	mf.setUseBinaryBitmap(true);
+            IsoMessage m = mf.parseMessage(z, 0);
+            
             if (m != null) {
                 System.out.printf("Message type: %04x%n", m.getType());
                 System.out.println("FIELD TYPE    VALUE");
@@ -82,4 +90,36 @@ public class SimpleParser {
             line = getMessage();
         }
     }
+    
+    public static String byteArry2HexString(byte[] byteArray) {
+
+		StringBuffer sb = new StringBuffer();
+
+		for (int i = 0; i < byteArray.length; i++) {
+			char byte1 = (char) (byteArray[i]);
+			if (byte1 < 0)
+				byte1 += 128;
+			int hi = (int) ((byte1 & 0xF0) >> 4);
+			int lo = (int) (byte1 & 0x0F);
+
+			char chi;
+			char clo;
+
+			if (hi < 10) {
+				chi = (char) (48 + hi);
+			} else {
+				chi = (char) (55 + hi);
+			}
+
+			if (lo < 10) {
+				clo = (char) (48 + lo);
+			} else {
+				clo = (char) (55 + lo);
+			}
+
+			sb.append(chi).append(clo);
+		}
+		return sb.toString();
+
+	}
 }
