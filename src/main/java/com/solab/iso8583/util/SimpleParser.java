@@ -30,68 +30,159 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.text.ParseException;
 
-/** A simple command-line program that reads a configuration file to set up a MessageFactory
- * and parse messages read from STDIN.
+/**
+ * A simple command-line program that reads a configuration file to set up a
+ * MessageFactory and parse messages read from STDIN.
  *
- * @author Enrique Zamudio
- *         Date: 20/06/12 02:11
+ * @author Enrique Zamudio Date: 20/06/12 02:11
  */
 public class SimpleParser {
 
-    private static BufferedReader reader;
+	private static BufferedReader reader;
 
-    private static String getMessage() throws IOException {
-        if (reader == null) {
-            reader = new BufferedReader(new InputStreamReader(System.in));
-        }
-        System.out.println("Paste your ISO8583 message here (no ISO headers): ");
-        return reader.readLine();
-    }
+	private static String getMessage() throws IOException {
+		if (reader == null) {
+			reader = new BufferedReader(new InputStreamReader(System.in));
+		}
+		System.out
+				.println("Paste your ISO8583 message here (no ISO headers): ");
+		return reader.readLine();
+	}
 
-    public static void main(String [] args) throws IOException, ParseException {
-        final MessageFactory<IsoMessage> mf = new MessageFactory<IsoMessage>();
-        if (args.length == 0) {
-            ConfigParser.configureFromDefault(mf);
-        } else {
-            if (System.console() != null) {
-                System.console().printf("Attempting to configure MessageFactory from %s...%n", args[0]);
-            }
-            String url = args[0];
-            if (url.contains("://")) {
-                ConfigParser.configureFromUrl(mf, new URL(args[0]));
-            } else {
-                ConfigParser.configureFromUrl(mf, new File(url).toURI().toURL());
-            }
-        }
-        //Now read messages in a loop
-        String a = getMessage();
-//        String a = byteArry2HexString(getMessage().getBytes());
-        String line = new String(new char[] {0xF0, 0xF8, 0xF0, 0xF0, 0xC2, 0x20, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xF5, 0xF9, 0xF1, 0xF1, 0xF0, 0xF9, 0xF1, 0xF0, 0xF2, 0xF2, 0xF1, 0xF0, 0xF0, 0xF5, 0xF3, 0xF0, 0xF0, 0xF0, 0xF0, 0xF3, 0xF6, 0xF1, 0xF0, 0xF6, 0xF0, 0xF0, 0xF1, 0xF1, 0xF0, 0xF9, 0xF2, 0xF7, 0xF0});
-        byte[] z = new byte[] {(byte) 0xF0, (byte) 0xF8, (byte) 0xF1, (byte) 0xF0, (byte) 0xC2, (byte) 0x20, (byte) 0x00, (byte) 0x00, (byte) 0x82, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x04, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0xF0, (byte) 0xF5, (byte) 0xF9, (byte) 0xF1, (byte) 0xF1, (byte) 0xF0, (byte) 0xF9, (byte) 0xF1, (byte) 0xF0, (byte) 0xF2, (byte) 0xF2, (byte) 0xF1, (byte) 0xF0, (byte) 0xF0, (byte) 0xF5, (byte) 0xF3, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF3, (byte) 0xF6, (byte) 0xF1, (byte) 0xF0, (byte) 0xF6, (byte) 0xF0, (byte) 0xF0, (byte) 0xF1, (byte) 0xF1, (byte) 0xF0, (byte) 0xF9, (byte) 0xF0, (byte) 0xF0, (byte) 0xF2, (byte) 0xF7, (byte) 0xF0};
-        
-//        String line = a;
-        while (line != null && line.length() > 0) {
-        	mf.setUseBinaryMessages(true);
-//        	mf.setUseBinaryBitmap(true);
-            IsoMessage m = mf.parseMessage(z, 0);
-            
-            if (m != null) {
-                System.out.printf("Message type: %04x%n", m.getType());
-                System.out.println("FIELD TYPE    VALUE");
-                for (int i = 2; i <= 128; i++) {
-                    IsoValue<?> f = m.getField(i);
-                    if (f != null) {
-                        System.out.printf("%5d %-6s [", i, f.getType());
-                        System.out.print(f.toString());
-                        System.out.println(']');
-                    }
-                }
-            }
-            line = getMessage();
-        }
-    }
-    
-    public static String byteArry2HexString(byte[] byteArray) {
+	public static void main(String[] args) throws IOException, ParseException {
+		final MessageFactory<IsoMessage> mf = new MessageFactory<IsoMessage>();
+		if (args.length == 0) {
+			ConfigParser.configureFromDefault(mf);
+		} else {
+			if (System.console() != null) {
+				System.console().printf(
+						"Attempting to configure MessageFactory from %s...%n",
+						args[0]);
+			}
+			String url = args[0];
+			if (url.contains("://")) {
+				ConfigParser.configureFromUrl(mf, new URL(args[0]));
+			} else {
+				ConfigParser
+						.configureFromUrl(mf, new File(url).toURI().toURL());
+			}
+		}
+		// Now read messages in a loop
+		String a = getMessage();
+		// String a = byteArry2HexString(getMessage().getBytes());
+		String line = new String(new char[] { 0xF0, 0xF8, 0xF0, 0xF0, 0xC2,
+				0x20, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xF5, 0xF9, 0xF1, 0xF1,
+				0xF0, 0xF9, 0xF1, 0xF0, 0xF2, 0xF2, 0xF1, 0xF0, 0xF0, 0xF5,
+				0xF3, 0xF0, 0xF0, 0xF0, 0xF0, 0xF3, 0xF6, 0xF1, 0xF0, 0xF6,
+				0xF0, 0xF0, 0xF1, 0xF1, 0xF0, 0xF9, 0xF2, 0xF7, 0xF0 });
+		byte[] z = new byte[] { (byte) 0xF0, (byte) 0xF1, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF2, (byte) 0x3C, (byte) 0x44,
+				(byte) 0x01, (byte) 0x08, (byte) 0xE9, (byte) 0x80,
+				(byte) 0x08, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+				(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+				(byte) 0x02, (byte) 0xF1, (byte) 0xF6, (byte) 0xF5,
+				(byte) 0xF3, (byte) 0xF2, (byte) 0xF4, (byte) 0xF7,
+				(byte) 0xF3, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF8, (byte) 0xF2, (byte) 0xF3, (byte) 0xF6,
+				(byte) 0xF8, (byte) 0xF3, (byte) 0xF8, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF3, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF2, (byte) 0xF5, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF1, (byte) 0xF2,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF9, (byte) 0xF5,
+				(byte) 0xF2, (byte) 0xF1, (byte) 0xF6, (byte) 0xF0,
+				(byte) 0xF7, (byte) 0xF6, (byte) 0xF6, (byte) 0xF5,
+				(byte) 0xF5, (byte) 0xF0, (byte) 0xF7, (byte) 0xF5,
+				(byte) 0xF2, (byte) 0xF2, (byte) 0xF1, (byte) 0xF1,
+				(byte) 0xF1, (byte) 0xF2, (byte) 0xF0, (byte) 0xF1,
+				(byte) 0xF5, (byte) 0xF0, (byte) 0xF4, (byte) 0xF7,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF1, (byte) 0xF9,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF0, (byte) 0xF6,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF5, (byte) 0xF5,
+				(byte) 0xF9, (byte) 0xF5, (byte) 0xF1, (byte) 0xF1,
+				(byte) 0xF2, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF6,
+				(byte) 0xF8, (byte) 0xF7, (byte) 0xC5, (byte) 0xC7,
+				(byte) 0xC4, (byte) 0xF0, (byte) 0xF0, (byte) 0xF6,
+				(byte) 0xF6, (byte) 0xF4, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF9, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF5, (byte) 0xF4, (byte) 0xF2,
+				(byte) 0xF0, (byte) 0xC1, (byte) 0xD4, (byte) 0xD6,
+				(byte) 0xD9, (byte) 0xC5, (byte) 0x40, (byte) 0xD4,
+				(byte) 0xD6, (byte) 0xE3, (byte) 0xC5, (byte) 0xD3,
+				(byte) 0x40, (byte) 0xE2, (byte) 0xC8, (byte) 0xD6,
+				(byte) 0xD9, (byte) 0xE3, (byte) 0x40, (byte) 0x40,
+				(byte) 0x40, (byte) 0x40, (byte) 0x40, (byte) 0x40,
+				(byte) 0xE2, (byte) 0x6F, (byte) 0x96, (byte) 0x40,
+				(byte) 0xC2, (byte) 0x85, (byte) 0x99, (byte) 0x95,
+				(byte) 0x81, (byte) 0x99, (byte) 0x84, (byte) 0x96,
+				(byte) 0x40, (byte) 0x40, (byte) 0xC2, (byte) 0xD9,
+				(byte) 0xC1, (byte) 0xF7, (byte) 0xF6, (byte) 0xC2,
+				(byte) 0xF5, (byte) 0xF3, (byte) 0xF2, (byte) 0xF4,
+				(byte) 0xF7, (byte) 0xF3, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF8, (byte) 0xF2, (byte) 0xF3,
+				(byte) 0xF6, (byte) 0xF8, (byte) 0xF3, (byte) 0xF8,
+				(byte) 0x5F, (byte) 0xD9, (byte) 0xD6, (byte) 0xC2,
+				(byte) 0xC5, (byte) 0xD9, (byte) 0xE3, (byte) 0xD6,
+				(byte) 0x40, (byte) 0xE2, (byte) 0x40, (byte) 0xC4,
+				(byte) 0xC5, (byte) 0xC6, (byte) 0xC5, (byte) 0xD5,
+				(byte) 0xC4, (byte) 0xC9, (byte) 0x40, (byte) 0x40,
+				(byte) 0x40, (byte) 0x40, (byte) 0x5F, (byte) 0xF1,
+				(byte) 0xF5, (byte) 0xF0, (byte) 0xF4, (byte) 0xF5,
+				(byte) 0xF0, (byte) 0xF1, (byte) 0xF0, (byte) 0xF5,
+				(byte) 0xF3, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF1, (byte) 0xF7, (byte) 0xC8, (byte) 0xF6,
+				(byte) 0xF1, (byte) 0xF0, (byte) 0xF5, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF9, (byte) 0xF2, (byte) 0xF0, (byte) 0xF3,
+				(byte) 0xF1, (byte) 0xF2, (byte) 0xF3, (byte) 0xF9,
+				(byte) 0xF8, (byte) 0xF6, (byte) 0xF0, (byte) 0xF2,
+				(byte) 0xF6, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF8,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF7,
+				(byte) 0xF6, (byte) 0xF0, (byte) 0xF9, (byte) 0xF6,
+				(byte) 0xF3, (byte) 0xF1, (byte) 0xF0, (byte) 0xF4,
+				(byte) 0xF0, (byte) 0x40, (byte) 0x40, (byte) 0xF0,
+				(byte) 0xF2, (byte) 0xF2, (byte) 0xF1, (byte) 0xF1,
+				(byte) 0xF2, (byte) 0xF0, (byte) 0xF0, (byte) 0xF7,
+				(byte) 0xF5, (byte) 0xF2, (byte) 0xF2, (byte) 0xF1,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF0, (byte) 0xF0, (byte) 0xF0,
+				(byte) 0xF0, (byte) 0xF6, (byte) 0xF8, (byte) 0xF7 };
+
+		// String line = a;
+		while (line != null && line.length() > 0) {
+			mf.setUseBinaryMessages(true);
+			// mf.setUseBinaryBitmap(true);
+			IsoMessage m = mf.parseMessage(z, 0);
+
+			if (m != null) {
+				System.out.printf("Message type: %04x%n", m.getType());
+				System.out.println("FIELD TYPE    VALUE");
+				for (int i = 2; i <= 128; i++) {
+					IsoValue<?> f = m.getField(i);
+					if (f != null) {
+						System.out.printf("%5d %-6s [", i, f.getType());
+						System.out.print(f.toString());
+						System.out.println(']');
+					}
+				}
+			}
+			line = getMessage();
+		}
+	}
+
+	public static String byteArry2HexString(byte[] byteArray) {
 
 		StringBuffer sb = new StringBuffer();
 
